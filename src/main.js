@@ -3,6 +3,8 @@
 import Vue from "vue";
 import App from "./App";
 import router from "./router";
+import Mock from "mockjs";
+import axios from "axios";
 
 Vue.config.productionTip = false;
 
@@ -20,7 +22,7 @@ router.beforeEach((to, from, next) => {
   if (relUrl.indexOf("?") != -1) {
     relUrl = relUrl.split("?")[0];
   }
-  console.log(relUrl, JSON.parse(sessionStorage.tag).name);
+  console.log(sessionStorage.tag);
   if (
     sessionStorage.tag ? relUrl === JSON.parse(sessionStorage.tag).name : false
   ) {
@@ -37,21 +39,37 @@ router.beforeEach((to, from, next) => {
     console.log("一样");
     next();
   } else {
-    if (to.meta.title) {
-      document.title = to.meta.title;
-    }
-    let link =
-      document.querySelector("link[rel*='icon']") ||
-      document.createElement("link");
-    link.type = "image/x-icon";
-    link.rel = "shortcut icon";
-    link.href = "http://www.stackoverflow.com/favicon.ico";
-    document.getElementsByTagName("head")[0].appendChild(link);
-    let tag = {};
-    tag.link = { type: link.type, rel: link.rel, href: link.href };
-    tag.title = to.meta.title;
-    tag.name = relUrl;
-    sessionStorage.setItem("tag", JSON.stringify(tag));
+    Mock.mock(/\/test.com/, options => {
+      return Mock.mock({
+        icon: "http://www.stackoverflow.com/favicon.ico",
+        "title|5-10": "@cname"
+      });
+    });
+    axios
+      .get("http://test.com/", {
+        params: {
+          modulesName: relUrl
+        }
+      })
+      .then(function(response) {
+        let link =
+          document.querySelector("link[rel*='icon']") ||
+          document.createElement("link");
+        link.type = "image/x-icon";
+        link.rel = "shortcut icon";
+        link.href = "response.data.icon";
+        document.getElementsByTagName("head")[0].appendChild(link);
+        document.title = to.meta.title ? to.meta.title : response.data.title;
+        let tag = {};
+        tag.link = { type: link.type, rel: link.rel, href: link.href };
+        tag.title = document.title;
+        tag.name = relUrl;
+        sessionStorage.setItem("tag", JSON.stringify(tag));
+        tag.title = to.meta.title ? to.meta.title : response.data.title;
+      })
+      .catch(function(error) {
+        console.log(error);
+      });
     console.log("不一样");
     next();
   }
